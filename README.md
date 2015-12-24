@@ -1,6 +1,8 @@
-1Ring - Portable anonymous identity and password management services with integrated wallets for Bitcoin and various cryptocurrencies
+1Ring - An Identity for Everyone, for Everything
 -------------------
 WARNING: THIS SOFTWARE IS PRESENTED "AS IS" AND WITHOUT WARRANTY.  IT IS CONSIDERED EXPERIMENTAL.  USE AT YOUR OWN RISK.
+
+Portable anonymous identity and password management services with integrated wallets for Bitcoin and various cryptocurrencies
 
 7e+9 people alive on the Earth 
 1e+24 grains of sand on the Earth

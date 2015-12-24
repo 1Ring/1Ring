@@ -1,0 +1,206 @@
+#!/usr/bin/env python
+#
+# Copyright 2015 Alternative Systems
+# See LICENSE.md for licensing terms
+#
+
+# The DHT contains the processed transactions
+# The tuple space operates as a messaging stack 
+
+import argparse, sys
+
+from Keyring import Keyring
+from common.identity import *
+from common.wallet import *
+from common.utils import *
+from common.gpg import *
+from common.web import *
+
+import binascii
+from key.coins import COINS
+
+def list_identities():
+    print "1Ring Identities"
+    print "--------------------------------------------------------------------"
+    print "ID\tFingerprint\tCreated\t\t\tLabel"
+    for id in ListIdentities():
+        print str(id['id']) + "\t" + "0x" + binascii.hexlify(id['fingerprint']).upper() + "\t" + str(unpackTime(id['created'])) + "\t" + str(id['label'])
+    sys.exit(0)
+
+def list_addresses(args):
+    data = ListAddresses(args.password,args.select_identity,args.use_wallet)
+    print "1Ring Addresses for Wallet ID #%s, %s" % (args.use_wallet, data[0][1].capitalize())  
+    print "--------------------------------------------------------------------"
+    print "ID\tAddress\t\t\t\t\tBalance"
+    for addr in data:
+        print str(addr[3]) + "\t" + addr[0] + "\t" + str(addr[2])
+
+def list_wallets(args):
+    print "1Ring Wallets for Identity #%s" % args.select_identity
+    print "--------------------------------------------------------------------"
+    print "ID\tBlockchain\t\tTestnet\t\tBalance"
+    for id in ListWallets(args.password,args.select_identity):
+        if id['balance'] is False:
+            balance = "No addresses."
+        else:
+            balance = id['balance'] 
+        print str(id['id']) + "\t" + id['currency'].ljust(15).capitalize() + "\t\t" + str(id['testnet']==1) + "\t\t" + str(balance) 
+    sys.exit(0)
+
+def list_websites(args):
+    print "1Ring Website Passwords for ID #%s" % (args.select_identity)  
+    print "--------------------------------------------------------------------"
+    print "ID\tDomain\t\t\t\t\tCreated\t\t\tUsername"
+    for item in ListWebsites(args.select_identity):
+        print '%s\t%s\t\t\t\t%s\t%s' % (item['id'], item['domain'], item['created'], item['username'],)
+
+def show_password(args):
+    password, username, email = ShowPassword(args.password,args.select_identity,args.show_password)
+    print "%s %s %s" % (password, username, email)
+
+def sign_message(args):
+    print binascii.hexlify(SignMessage(args.password,args.sign,args.select_identity))
+
+def verify_message(args):
+    print VerifyMessage(args.password,args.select_identity,binascii.unhexlify(args.verify),args.message,args.use_address)
+
+def generate_address(args):
+    GenerateAddress(args.password, args.select_identity, args.use_wallet)
+
+def create_website_password(args):
+    CreateWebsitePassword(args.password, args.select_identity, args.create_website_password, args.website_login)
+
+def create_wallet(args):
+    CreateWallet(args.password,args.select_cryptocurrency,args.use_testnet,args.select_identity)
+
+def create_identity(args):
+    CreateIdentity(args.password,args.select_cryptocurrency,args.use_testnet,args.select_identity)
+
+def create_GPG_key(args):
+    CreateGPGKey(args.select_identity, args.password, args.create_GPG_key)
+
+def GetArgs():
+    "Parse command line and validate inputs"
+    parser = argparse.ArgumentParser(description='Manage 1Ring Identities')
+
+    parser.add_argument('-i','--select-identity', action='store', type=int, default=1, 
+                    help="Select an identity for further operations")
+    parser.add_argument('-p','--password', required=False, action='store', default=None,        
+                    help="Password for the specified identity.  Should be enclosed in single (\') or double (\") quotes.")
+    parser.add_argument('-l','--list-identities', action='store_true',
+                    help="List all identites")
+    parser.add_argument('-e','--create-identity', action='store', 
+                    help="Create an identity with the specified label.  Should be enclosed in single (\') or double (\") quotes.")
+
+    parser.add_argument('-y','--select-cryptocurrency', action='store', default='bitcoin', choices=['bitcoin','ethereum','expanse','litecoin','unobtanium'],
+                    help="Select the cryptocurrency to use")
+    parser.add_argument('-t','--use-testnet', action='store', default=False, 
+                    help="Use testnet encoding.")
+    parser.add_argument('-c','--create-wallet', action='store_true',
+                    help="Create a HD wallet and display the WIF and BIP32 private key")
+ 
+    parser.add_argument('-b','--list-wallets', action='store_true',
+                    help="List all wallets")
+    parser.add_argument('-g','--use-wallet', action='store', type=int, default=1,
+                    help="Select wallet for further operations")
+    parser.add_argument('-a','--generate-address', action='store_true', 
+                    help="Generates an address from a wallet")
+ 
+    parser.add_argument('-d','--list-addresses', action='store_true', 
+                    help="Lists addresses in a wallet")
+    parser.add_argument('-u','--use-address', action='store', type=int, default=1,
+                    help="Select address for further operations")
+
+    parser.add_argument('-s','--sign', action='store', 
+                    help="Sign a string with the specified identity. Should be enclosed in double (\") quotes.")
+    parser.add_argument('-v','--verify', action='store', 
+                    help="Supply a signature to be verified. Should be enclosed in double (\") quotes. Use -m to specify the message, -k to specify origin address.")
+    parser.add_argument('-m','--message', action='store', 
+                    help="Supply a message (with a signature) to be verified. Should be enclosed in double (\") quotes. Use -v to specify the signature.")
+
+    parser.add_argument('-w','--list-websites', action='store_true', 
+                    help="List non-1Ring websites")
+    parser.add_argument('-r','--create-website-password', action='store', 
+                    help="Create a password for the specified non-1Ring website ID. If a password exists, replace it.")
+    parser.add_argument('-o','--show-password', action='store', 
+                    help="Display the password for the non-1Ring website ID provided")
+    parser.add_argument('-n','--website-login', action='store', 
+                    help="Use the specified login name for the non-1Ring website indicated with -r")
+ 
+
+    """
+    parser.add_argument('-C','--create-GPG-key', action='store',
+                    help="Create a GPG key for the given identity with the provided label.")
+    parser.add_argument('-L','--list-GPG-keys', action='store_true',
+                    help="List GPG keys for the given identity")
+    parser.add_argument('-U','--use-GPG-key', action='store',
+                    help="Select GPG key for further operation")
+    parser.add_argument('-E','--encrypt-using-GPG-key', action='store',
+                    help="Encrypt text with selected GPG key")
+    parser.add_argument('-D','--decrypt-using-GPG-key', action='store',
+                    help="Encrypt text with selected GPG key")
+    parser.add_argument('-X','--export-GPG-key-pair', action='store',
+                    help="Export the selected GPG key pair to specified file")
+    """
+
+    args = parser.parse_args()
+
+    if args.select_identity is None:
+        ErrorExit("Use -i to specify an identity!")
+    elif args.create_website_password is not None and args.website_login is None:
+        ErrorExit ("The -r command requires -n. Use --help for more information.")
+    elif args.website_login is not None and args.create_website_password is None:
+        ErrorExit ("The -n command requires -r.  Use --help for more information.")
+    elif args.use_address is None and args.verify is not None:
+        ErrorExit ("The -v command requires -u.  Use --help for more information.")
+    elif args.message is None and args.verify is not None:
+        ErrorExit ("The -v command requires -m.  Use --help for more information.")
+
+    return args
+
+def ErrorExit(e):
+    "Ab-end, printing exception"
+    try:
+       sys.stderr.write(sys.argv[0]+": "+e.message+'\n')
+    except:
+       sys.stderr.write(sys.argv[0]+": "+e+'\n')
+    sys.exit(1)
+
+if __name__ == '__main__':
+    try:
+        args = GetArgs()
+    except Exception as e:
+        ErrorExit(e)
+    InitializeKeyStore(args)
+
+    # Load the identity with the password specicied at the command line
+    if args.password is None:
+        if args.list_identities:
+            list_identities()
+        else:
+            ErrorExit("Nothing to do. Use --help for a list of commands")
+    elif not Keyring(args.password, args.select_identity).isValid():
+            ErrorExit("Password invalid or identity does not exist. Use -l for a list of valid identities.")
+    else:
+        if args.create_wallet:
+            create_wallet(args)
+        if args.list_identities:
+            list_identities()
+        elif args.list_wallets:
+            list_wallets(args)
+        elif args.list_addresses:
+            list_addresses(args)
+        elif args.sign:
+            sign_message(args)
+        elif args.verify:
+            verify_message(args)
+        #elif args.create_GPG_key:
+        #    create_GPG_key(args)
+        elif args.list_websites:
+            list_websites(args)
+        elif args.create_website_password is not None:
+            create_website_password(args)
+        elif args.show_password is not None:
+            show_password(args)
+        elif args.generate_address:
+            generate_address(args)

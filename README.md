@@ -1,6 +1,6 @@
-WARNING: THIS SOFTWARE IS PRESENTED "AS IS" AND WITHOUT WARRANTY.  IT IS CONSIDERED EXPERIMENTAL.  USE AT YOUR OWN RISK.
-
 1Ring - Portable anonymous identity and password management services with integrated wallets for Bitcoin and various cryptocurrencies
+-------------------
+WARNING: THIS SOFTWARE IS PRESENTED "AS IS" AND WITHOUT WARRANTY.  IT IS CONSIDERED EXPERIMENTAL.  USE AT YOUR OWN RISK.
 
 7e+9 people alive on the Earth 
 1e+24 grains of sand on the Earth

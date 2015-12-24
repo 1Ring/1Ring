@@ -28,3 +28,5 @@ Dependencies
     twistd
     pycrypto
     python-ecdsa
+
+Copyright 2015-2016 Alternative Systems LLC, All Rights Reserved

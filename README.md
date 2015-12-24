@@ -4,11 +4,11 @@ WARNING: THIS SOFTWARE IS PRESENTED "AS IS" AND WITHOUT WARRANTY.  IT IS CONSIDE
 
 Portable anonymous identity and password management services with integrated wallets for Bitcoin and various cryptocurrencies
 
-7e+9 people alive on the Earth 
-1e+24 grains of sand on the Earth
-3e+23 stars in the universe
-5.4e+58 hydrogen atoms in the universe
-3.4e+73 possible identities in the 1Ring identity ecosystem
+* 7e+9 people alive on the Earth 
+* 1e+24 grains of sand on the Earth
+* 3e+23 stars in the universe
+* 5.4e+58 hydrogen atoms in the universe
+* 3.4e+73 possible identities in the 1Ring identity ecosystem
 
 Dependencies 
 -------------------

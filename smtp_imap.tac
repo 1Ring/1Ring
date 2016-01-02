@@ -41,18 +41,19 @@ from twisted.internet import defer
 from twisted.mail import smtp
 from twisted.mail.imap4 import LOGINCredentials, PLAINCredentials
 
-from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse
+from twisted.cred.credentials import IUsernamePassword
+from twisted.cred.checkers import ICredentialsChecker
 from twisted.cred.portal import IRealm
 from twisted.cred.portal import Portal
 from common.utils import checkAddress
 from key.Key import Key
 from key.coins import COINS
-import Base58
+import key.Base58
 import hashlib
 
 class PasswordDictChecker:
-    implements(checkers.ICredentialsChecker)
-    credentialInterfaces = (credentials.IUsernamePassword,)
+    implements(ICredentialsChecker)
+    credentialInterfaces = (IUsernamePassword,)
 
     def __init__(self, password):
         "passwords: a string object containing the base for signatures"
@@ -113,7 +114,7 @@ class ConsoleMessage:
         # There was an error, throw away the stored lines
         self.lines = None
 
-class ConsoleSMTPFactory(smtp.SMTPFactory):
+class SMTPFactory(smtp.SMTPFactory):
     protocol = smtp.ESMTP
 
     def __init__(self, *a, **kw):
@@ -126,13 +127,59 @@ class ConsoleSMTPFactory(smtp.SMTPFactory):
         p.challengers = {"LOGIN": LOGINCredentials, "PLAIN": PLAINCredentials}
         return p
 
-class MailRealm:
+class SMTPRealm:
     implements(IRealm)
 
     def requestAvatar(self, avatarId, mind, *interfaces):
         if smtp.IMessageDelivery in interfaces:
             return smtp.IMessageDelivery, ConsoleMessageDelivery(), lambda: None
         raise NotImplementedError()
+
+class IMAPServerProtocol(imap4.IMAP4Server):
+    "Subclass of imap4.IMAP4Server that adds debugging."
+    debug = True
+
+    def lineReceived(self, line):
+        if self.debug:
+            print "CLIENT:", line
+        imap4.IMAP4Server.lineReceived(self, line)
+
+    def sendLine(self, line):
+        imap4.IMAP4Server.sendLine(self, line)
+        if self.debug:
+            print "SERVER:", line
+
+class IMAPFactory(protocol.Factory):
+    protocol = IMAPServerProtocol
+    portal = None # placeholder
+
+    def buildProtocol(self, address):
+        p = self.protocol()
+        p.portal = self.portal
+        p.factory = self
+        return p
+
+class IMAPRealm(object):
+    implements(portal.IRealm)
+    avatarInterfaces = {
+        imap4.IAccount: TwitterUserAccount,
+    }
+
+    def __init__(self, cache):
+        self.cache = cache
+
+    def requestAvatar(self, avatarId, mind, *interfaces):
+        for requestedInterface in interfaces:
+            if self.avatarInterfaces.has_key(requestedInterface):
+                # return an instance of the correct class
+                avatarClass = self.avatarInterfaces[requestedInterface]
+                avatar = avatarClass(self.cache)
+                # null logout function: take no arguments and do nothing
+                logout = lambda: None
+                return defer.succeed((requestedInterface, avatar, logout))
+
+        # none of the requested interfaces was supported
+        raise KeyError("None of the requested interfaces is supported")
 
 def main():
     from twisted.application import internet
@@ -142,10 +189,12 @@ def main():
 
     checker = PasswordDictChecker(myURL)    
 
-    portal = Portal(MailRealm(), [checker])
+    smtp_portal = Portal(SMTPRealm(), [checker])
+    imap_portal = Portal(IMAPRealm(), [checker])
     
     a = service.Application("1Ring SMTP/IMAP Server")
-    internet.TCPServer(2500, ConsoleSMTPFactory(portal)).setServiceParent(a)
+    internet.TCPServer(2500, SMTPFactory(smtp_portal)).setServiceParent(a)
+    internet.TCPServer(1143, IMAPFactory(imap_portal)).setServiceParent(a)
     
     return a
 

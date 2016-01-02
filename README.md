@@ -23,6 +23,12 @@ Portable anonymous identity and password management services with integrated wal
  ./1Ring-cli --help
 ```
 
+TODO
+-------------------
+SMTP/IMAP Server
+1Ring website authentication
+
+
 Dependencies 
 -------------------
     sqlite3

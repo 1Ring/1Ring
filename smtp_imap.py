@@ -1,21 +1,17 @@
-# Copyright (c) Twisted Matrix Laboratories.
-# See LICENSE for details.
-
-# You can run this module directly with:
-#    twistd -ny smtp_server.tac
 #!/usr/bin/env python
 #
+# Copyright (c) Twisted Matrix Laboratories.
 # Copyright 2015 Alternative Systems All Rights Reserved
 #
 # Redistribution and use in source and binary forms, with or without 
 # modification, are permitted provided that the following conditions are met:
 #
-# •   Redistributions of source code must retain the above copyright notice, 
+# *   Redistributions of source code must retain the above copyright notice, 
 #       this list of conditions and the following disclaimer. 
-# •   Redistributions in binary form must reproduce the above copyright notice, 
+# *   Redistributions in binary form must reproduce the above copyright notice, 
 #       this list of conditions and the following disclaimer in the 
 #       documentation and/or other materials provided with the distribution. 
-# •   Neither the name of the Alternative Systems LLC nor the names of its 
+# *   Neither the name of the Alternative Systems LLC nor the names of its 
 #       contributors may be used to endorse or promote products derived from 
 #       this software without specific prior written permission.
 #
@@ -39,11 +35,6 @@
 # Iran, Syria, Sudan, Afghanistan and any other country to which the U.S. has 
 # embargoed goods and services.
 
-
-"""
-A toy email server.
-"""
-
 from zope.interface import implements
 
 from twisted.internet import defer
@@ -65,17 +56,21 @@ class PasswordDictChecker:
 
     def __init__(self, password):
         "passwords: a string object containing the base for signatures"
-        self.password = password
+        self.verify_message = password
 
     def requestAvatarId(self, credentials):
         username = credentials.username
+        password = credentials.password
         if checkAddress(username):
-            pubkey = Key.RecoverPubkey(self.password,credentials.password)
-            vh160 = COINS['1Ring']['main']['prefix'].decode('hex')+self.Identifier()
-            addr=Base58.check_encode(vh160)
-            check_addr=hashlib.new('ripemd160', sha256(pubkey).digest()).digest()
-            if check_addr == addr:
-                return defer.succeed(username)
+            pubkey = Key.RecoverPubkey(self.verify_message,password)
+            vh160 = COINS['1Ring']['main']['prefix'].decode('hex')+hashlib.new('ripemd160', sha256(pubkey).digest()).digest()
+            check_addr=Base58.check_encode(vh160)
+            if check_addr == username:
+                if Key.Verify(password,self.verify_message,username):
+                    return defer.succeed(username)
+                else:
+                    return defer.fail(
+                        credError.UnauthorizedLogin("Bad password"))
             else:
                 return defer.fail(
                     credError.UnauthorizedLogin("Bad password"))

@@ -18,9 +18,11 @@ Portable anonymous identity and password management services with integrated wal
 * 3e+23 stars in the universe
 * 5.4e+58 hydrogen atoms in the universe
 * 3.4e+73 possible identities in the 1Ring identity ecosystem
+
 '''
 ./1Ring-cli --help
 '''
+
 Dependencies 
 -------------------
     sqlite3

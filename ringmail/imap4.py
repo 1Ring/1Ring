@@ -1,5 +1,9 @@
+from twisted.internet import protocol
+from twisted.mail import imap4
 from twisted.mail.imap4 import LOGINCredentials, PLAINCredentials
 from zope.interface import implements
+from twisted.cred.portal import IRealm
+from twisted.cred import portal
 
 class IMAPServerProtocol(imap4.IMAP4Server):
     "Subclass of imap4.IMAP4Server that adds debugging."
@@ -16,8 +20,9 @@ class IMAPServerProtocol(imap4.IMAP4Server):
             print "SERVER:", line
 
 class IMAPFactory(protocol.Factory):
-    protocol = IMAPServerProtocol
-    portal = None # placeholder
+    def __init__(self, *a, **kw):
+        self.protocol = IMAPServerProtocol
+        self.portal = None # placeholder
 
     def buildProtocol(self, address):
         p = self.protocol()
@@ -25,10 +30,14 @@ class IMAPFactory(protocol.Factory):
         p.factory = self
         return p
 
+class UserAccount:
+    def __init__(self):
+        pass
+
 class IMAPRealm(object):
     implements(portal.IRealm)
     avatarInterfaces = {
-        imap4.IAccount: TwitterUserAccount,
+        imap4.IAccount: UserAccount,
     }
 
     def __init__(self, cache):

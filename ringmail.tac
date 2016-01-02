@@ -41,13 +41,26 @@ from twisted.internet import defer
 
 from twisted.cred.credentials import IUsernamePassword
 from twisted.cred.checkers import ICredentialsChecker
-from twisted.cred.portal import IRealm
 from twisted.cred.portal import Portal
 from common.utils import checkAddress
 from key.Key import Key
 from key.coins import COINS
+from ringmail.pop3 import *
+from ringmail.imap4 import *
+from ringmail.smtp import *
+
 import key.Base58
 import hashlib
+
+class ObjCache(object):
+  def __init__(self):
+    self.cache = {}
+
+  def get(self, item):
+    return self.cache[item]
+
+  def set(self, item, value):
+    self.cache[item] = value
 
 class PasswordChecker:
     implements(ICredentialsChecker)
@@ -81,16 +94,13 @@ def main():
     from twisted.application import internet
     from twisted.application import service    
     from twisted.internet.protocol import ServerFactory
-    from mail.pop3 import *
-    from mail.imap4 import *
-    from mail.smtp import *
 
     myURL = "firewall.1ring.io"
 
     checker = PasswordChecker(myURL)    
 
     smtp_portal = Portal(SMTPRealm(), [checker])
-    imap_portal = Portal(IMAPRealm(), [checker])
+    imap_portal = Portal(IMAPRealm(ObjCache()), [checker])
     pop3_portal = Portal(POP3Realm(), [checker])
     
     a = service.Application("1Ring SMTP/IMAP Server")

@@ -1,5 +1,7 @@
+from twisted.internet import protocol
 from twisted.mail.pop3 import IMailbox
 from zope.interface import implements
+from twisted.cred.portal import IRealm
 
 class POP3Mailbox:
     implements(IMailbox)
@@ -35,10 +37,10 @@ Hello world!"""
         pass
 
 class POP3Factory(protocol.Factory):
-    from twisted.mail import pop3
-
-    protocol = pop3.POP3
-    portal = None # placeholder
+    def __init__(self, *a, **kw):
+        from twisted.mail import pop3
+        self.protocol = pop3.POP3
+        self.portal = None # placeholder
 
     def buildProtocol(self, address):
         p = self.protocol()

@@ -1,6 +1,7 @@
 from twisted.mail import smtp
 from twisted.internet import defer
 from zope.interface import implements
+from twisted.cred.portal import IRealm
 
 class SMTPMessageDelivery:
     implements(smtp.IMessageDelivery)

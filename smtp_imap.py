@@ -53,8 +53,35 @@ from twisted.mail.imap4 import LOGINCredentials, PLAINCredentials
 from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse
 from twisted.cred.portal import IRealm
 from twisted.cred.portal import Portal
+from common.utils import checkAddress
+from key.Key import Key
+from key.coins import COINS
+import Base58
+import hashlib
 
+class PasswordDictChecker:
+    implements(checkers.ICredentialsChecker)
+    credentialInterfaces = (credentials.IUsernamePassword,)
 
+    def __init__(self, password):
+        "passwords: a string object containing the base for signatures"
+        self.password = password
+
+    def requestAvatarId(self, credentials):
+        username = credentials.username
+        if checkAddress(username):
+            pubkey = Key.RecoverPubkey(self.password,credentials.password)
+            vh160 = COINS['1Ring']['main']['prefix'].decode('hex')+self.Identifier()
+            addr=Base58.check_encode(vh160)
+            check_addr=hashlib.new('ripemd160', sha256(pubkey).digest()).digest()
+            if check_addr == addr:
+                return defer.succeed(username)
+            else:
+                return defer.fail(
+                    credError.UnauthorizedLogin("Bad password"))
+        else:
+            return defer.fail(
+                credError.UnauthorizedLogin("No such user"))
 
 class ConsoleMessageDelivery:
     implements(smtp.IMessageDelivery)
@@ -62,11 +89,9 @@ class ConsoleMessageDelivery:
     def receivedHeader(self, helo, origin, recipients):
         return "Received: ConsoleMessageDelivery"
 
-    
     def validateFrom(self, helo, origin):
         # All addresses are accepted
         return origin
-
     
     def validateTo(self, user):
         # Only messages directed to the "console" user are accepted.
@@ -74,31 +99,24 @@ class ConsoleMessageDelivery:
             return lambda: ConsoleMessage()
         raise smtp.SMTPBadRcpt(user)
 
-
-
 class ConsoleMessage:
     implements(smtp.IMessage)
     
     def __init__(self):
         self.lines = []
-
     
     def lineReceived(self, line):
         self.lines.append(line)
-
     
     def eomReceived(self):
         print "New message received:"
         print "\n".join(self.lines)
         self.lines = None
         return defer.succeed(None)
-
-    
+   
     def connectionLost(self):
         # There was an error, throw away the stored lines
         self.lines = None
-
-
 
 class ConsoleSMTPFactory(smtp.SMTPFactory):
     protocol = smtp.ESMTP
@@ -106,15 +124,12 @@ class ConsoleSMTPFactory(smtp.SMTPFactory):
     def __init__(self, *a, **kw):
         smtp.SMTPFactory.__init__(self, *a, **kw)
         self.delivery = ConsoleMessageDelivery()
-    
 
     def buildProtocol(self, addr):
         p = smtp.SMTPFactory.buildProtocol(self, addr)
         p.delivery = self.delivery
         p.challengers = {"LOGIN": LOGINCredentials, "PLAIN": PLAINCredentials}
         return p
-
-
 
 class MailRealm:
     implements(IRealm)
@@ -124,13 +139,13 @@ class MailRealm:
             return smtp.IMessageDelivery, ConsoleMessageDelivery(), lambda: None
         raise NotImplementedError()
 
-
-
 def main():
     from twisted.application import internet
     from twisted.application import service    
 
-    checker = PasswordDictChecker()    
+    myURL = "firewall.1ring.io"
+
+    checker = PasswordDictChecker(myURL)    
 
     portal = Portal(MailRealm(), [checker])
     

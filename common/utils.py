@@ -59,7 +59,7 @@ def packTime(_time=time.time()):
 def unpackTime(_time):
     return datetime.utcfromtimestamp(int(binascii.hexlify(_time)))
 
-def checkBitcoinAddress(bc):
+def checkAddress(bc):
     addr = Base58.b58decode(bc,25)
     if addr is None: return None
     version = addr[0]

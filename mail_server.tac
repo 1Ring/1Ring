@@ -38,8 +38,6 @@
 from zope.interface import implements
 
 from twisted.internet import defer
-from twisted.mail import smtp
-from twisted.mail.imap4 import LOGINCredentials, PLAINCredentials
 
 from twisted.cred.credentials import IUsernamePassword
 from twisted.cred.checkers import ICredentialsChecker
@@ -51,7 +49,7 @@ from key.coins import COINS
 import key.Base58
 import hashlib
 
-class PasswordDictChecker:
+class PasswordChecker:
     implements(ICredentialsChecker)
     credentialInterfaces = (IUsernamePassword,)
 
@@ -79,123 +77,27 @@ class PasswordDictChecker:
             return defer.fail(
                 credError.UnauthorizedLogin("No such user"))
 
-class ConsoleMessageDelivery:
-    implements(smtp.IMessageDelivery)
-    
-    def receivedHeader(self, helo, origin, recipients):
-        return "Received: ConsoleMessageDelivery"
-
-    def validateFrom(self, helo, origin):
-        # All addresses are accepted
-        return origin
-    
-    def validateTo(self, user):
-        # Only messages directed to the "console" user are accepted.
-        if user.dest.local == "console":
-            return lambda: ConsoleMessage()
-        raise smtp.SMTPBadRcpt(user)
-
-class ConsoleMessage:
-    implements(smtp.IMessage)
-    
-    def __init__(self):
-        self.lines = []
-    
-    def lineReceived(self, line):
-        self.lines.append(line)
-    
-    def eomReceived(self):
-        print "New message received:"
-        print "\n".join(self.lines)
-        self.lines = None
-        return defer.succeed(None)
-   
-    def connectionLost(self):
-        # There was an error, throw away the stored lines
-        self.lines = None
-
-class SMTPFactory(smtp.SMTPFactory):
-    protocol = smtp.ESMTP
-
-    def __init__(self, *a, **kw):
-        smtp.SMTPFactory.__init__(self, *a, **kw)
-        self.delivery = ConsoleMessageDelivery()
-
-    def buildProtocol(self, addr):
-        p = smtp.SMTPFactory.buildProtocol(self, addr)
-        p.delivery = self.delivery
-        p.challengers = {"LOGIN": LOGINCredentials, "PLAIN": PLAINCredentials}
-        return p
-
-class SMTPRealm:
-    implements(IRealm)
-
-    def requestAvatar(self, avatarId, mind, *interfaces):
-        if smtp.IMessageDelivery in interfaces:
-            return smtp.IMessageDelivery, ConsoleMessageDelivery(), lambda: None
-        raise NotImplementedError()
-
-class IMAPServerProtocol(imap4.IMAP4Server):
-    "Subclass of imap4.IMAP4Server that adds debugging."
-    debug = True
-
-    def lineReceived(self, line):
-        if self.debug:
-            print "CLIENT:", line
-        imap4.IMAP4Server.lineReceived(self, line)
-
-    def sendLine(self, line):
-        imap4.IMAP4Server.sendLine(self, line)
-        if self.debug:
-            print "SERVER:", line
-
-class IMAPFactory(protocol.Factory):
-    protocol = IMAPServerProtocol
-    portal = None # placeholder
-
-    def buildProtocol(self, address):
-        p = self.protocol()
-        p.portal = self.portal
-        p.factory = self
-        return p
-
-class IMAPRealm(object):
-    implements(portal.IRealm)
-    avatarInterfaces = {
-        imap4.IAccount: TwitterUserAccount,
-    }
-
-    def __init__(self, cache):
-        self.cache = cache
-
-    def requestAvatar(self, avatarId, mind, *interfaces):
-        for requestedInterface in interfaces:
-            if self.avatarInterfaces.has_key(requestedInterface):
-                # return an instance of the correct class
-                avatarClass = self.avatarInterfaces[requestedInterface]
-                avatar = avatarClass(self.cache)
-                # null logout function: take no arguments and do nothing
-                logout = lambda: None
-                return defer.succeed((requestedInterface, avatar, logout))
-
-        # none of the requested interfaces was supported
-        raise KeyError("None of the requested interfaces is supported")
-
 def main():
     from twisted.application import internet
     from twisted.application import service    
+    from twisted.internet.protocol import ServerFactory
+    from mail.pop3 import *
+    from mail.imap4 import *
+    from mail.smtp import *
 
     myURL = "firewall.1ring.io"
 
-    checker = PasswordDictChecker(myURL)    
+    checker = PasswordChecker(myURL)    
 
     smtp_portal = Portal(SMTPRealm(), [checker])
     imap_portal = Portal(IMAPRealm(), [checker])
+    pop3_portal = Portal(POP3Realm(), [checker])
     
     a = service.Application("1Ring SMTP/IMAP Server")
     internet.TCPServer(2500, SMTPFactory(smtp_portal)).setServiceParent(a)
     internet.TCPServer(1143, IMAPFactory(imap_portal)).setServiceParent(a)
-    
+    internet.TCPServer(1230, POP3Factory(pop3_portal)).setServiceParent(a)    
+
     return a
 
 application = main()

@@ -2,7 +2,7 @@
 # See LICENSE for details.
 
 # You can run this module directly with:
-#    twistd -ny emailserver.tac
+#    twistd -ny smtp_server.tac
 #!/usr/bin/env python
 #
 # Copyright 2015 Alternative Systems All Rights Reserved
@@ -116,7 +116,7 @@ class ConsoleSMTPFactory(smtp.SMTPFactory):
 
 
 
-class SimpleRealm:
+class MailRealm:
     implements(IRealm)
 
     def requestAvatar(self, avatarId, mind, *interfaces):
@@ -129,13 +129,12 @@ class SimpleRealm:
 def main():
     from twisted.application import internet
     from twisted.application import service    
+
+    checker = PasswordDictChecker()    
+
+    portal = Portal(MailRealm(), [checker])
     
-    portal = Portal(SimpleRealm())
-    checker = InMemoryUsernamePasswordDatabaseDontUse()
-    checker.addUser("guest", "password")
-    portal.registerChecker(checker)
-    
-    a = service.Application("Console SMTP Server")
+    a = service.Application("1Ring SMTP/IMAP Server")
     internet.TCPServer(2500, ConsoleSMTPFactory(portal)).setServiceParent(a)
     
     return a

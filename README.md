@@ -25,8 +25,8 @@ Portable anonymous identity and password management services with integrated wal
 
 TODO
 -------------------
-SMTP/IMAP Server
-1Ring website authentication
+* SMTP/IMAP Server
+* 1Ring website authentication
 
 
 Dependencies 

@@ -57,6 +57,12 @@ def list_identities():
         print str(id['id']) + "\t" + "0x" + binascii.hexlify(id['fingerprint']).upper() + "\t" + str(unpackTime(id['created'])) + "\t" + str(id['label'])
     sys.exit(0)
 
+def export_identity(args):
+    print ExportIdentity(args.select_identity,args.password)
+
+def import_identity(args):
+    print ImportIdentity(args.import_identity,args.password)
+
 def list_addresses(args):
     data = ListAddresses(args.password,args.select_identity,args.use_wallet)
     print "1Ring Addresses for Wallet ID #%s, %s" % (args.use_wallet, data[0][1].capitalize())  
@@ -104,7 +110,8 @@ def create_wallet(args):
     CreateWallet(args.password,args.select_cryptocurrency,args.use_testnet,args.select_identity)
 
 def create_identity(args):
-    CreateIdentity(args.password,args.select_cryptocurrency,args.use_testnet,args.select_identity)
+    id = CreateIdentity(args.password,args.select_cryptocurrency,args.use_testnet,args.select_identity)
+    print ExportIdentity(id,args.password)
 
 def create_GPG_key(args):
     CreateGPGKey(args.select_identity, args.password, args.create_GPG_key)
@@ -121,6 +128,10 @@ def GetArgs():
                     help="List all identites")
     parser.add_argument('-e','--create-identity', action='store', 
                     help="Create an identity with the specified label.  Should be enclosed in single (\') or double (\") quotes.")
+    parser.add_argument('-x','--export-identity', action='store_true',
+                    help="Export the identity specified with -i into a 16 word mnemonic.")
+    parser.add_argument('-I','--import-identity', action='store',
+                    help="Import the 16 word mnemonic into an identity.")
 
     parser.add_argument('-y','--select-cryptocurrency', action='store', default='bitcoin', choices=['bitcoin','ethereum','expanse','litecoin','unobtanium'],
                     help="Select the cryptocurrency to use")
@@ -209,6 +220,8 @@ if __name__ == '__main__':
             list_identities()
         else:
             ErrorExit("Nothing to do. Use --help for a list of commands")
+    elif args.import_identity is not None:
+        import_identity(args)
     elif not Keyring(args.password, args.select_identity).isValid():
             ErrorExit("Password invalid or identity does not exist. Use -l for a list of valid identities.")
     else:
@@ -234,3 +247,5 @@ if __name__ == '__main__':
             show_password(args)
         elif args.generate_address:
             generate_address(args)
+        elif args.export_identity:
+            export_identity(args)

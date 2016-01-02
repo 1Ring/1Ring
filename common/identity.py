@@ -42,14 +42,45 @@ import os
 import random
 from Crypto.Cipher import AES
 from utils import hasher, ReadEntropy, packTime
+from binascii import hexlify,unhexlify
 #from pgp import CreateGPGKey
 
-def CreateIdentity(password,label):
+def ExportIdentity(identity_id,password):
+    filename = './dictionary.txt'
+    assert os.path.isfile(filename), "Dictionary.txt is missing!"         # initialize the database if needed
+    dictionary = None
+    with open(filename) as f:
+        dictionary = f.readlines()
+    myID = Keyring(password,identity_id)
+    mnemonic = ""
+    for x in range(0,len(myID.Entropy)):
+        mnemonic += dictionary[ord(myID.Entropy[x:x+1])].strip("\n") + " "
+    return mnemonic
+
+def ImportIdentity(mnemonic,password):
+    filename = './dictionary.txt'
+    assert os.path.isfile(filename), "Dictionary.txt is missing!"         # initialize the database if needed
+    dictionary = None
+    with open(filename) as f:
+        dictionary = f.readlines()
+    word_list = mnemonic.split(" ")
+    assert len(word_list) <= 16, "Mnemonic too short!"
+    entropy = ""
+    for x in range(0,len(word_list)):
+        try:
+            word_index = dictionary.index(word_list[x] + '\n')
+            entropy += chr(word_index)
+        except:
+            assert "Invalid mnemonic!"
+    return CreateIdentity(password,"Imported Identity",entropy)
+
+def CreateIdentity(password,label, entropy=None):
     IV = ''.join(chr(random.randint(0, 0xFF)) for i in range(16))
     mode = AES.MODE_CBC
     stash = hasher(password)
     cryptor = AES.new(stash, mode, IV=IV)
-    entropy = ReadEntropy()
+    if entropy == None:
+        entropy = ReadEntropy()
     ent = cryptor.encrypt(entropy)
     m = Key.fromEntropy(entropy)
     fp = hasher(m.Fingerprint())[0:6]
@@ -57,10 +88,14 @@ def CreateIdentity(password,label):
     filename = CONFIG['DataDir'] + 'keyring.dat'
     with db.connect(filename) as keyring:
         cur = keyring.cursor()
-        cur.execute("INSERT INTO Identity    (label, entropy, iv, fingerprint, version, created)   VALUES (?, ?, ?, ?, ?, ?)", (buffer(label),buffer(ent), buffer(IV), buffer(fp), CONFIG['Version'], buffer(packTime())))
+        try:
+            cur.execute("INSERT INTO Identity    (label, entropy, iv, fingerprint, version, created)   VALUES (?, ?, ?, ?, ?, ?)", (buffer(label),buffer(ent), buffer(IV), buffer(fp), CONFIG['Version'], buffer(packTime())))
+        except:
+            assert "Identity already exists!"
         cur.execute("SELECT id FROM Identity    WHERE entropy=?", (buffer(ent),))
         data = cur.fetchone()
     #CreateGPGKey(identity_id=data[0], password=password, label=label, primary=True)
+    return data[0]
 
 def ListIdentities():
     items = []

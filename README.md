@@ -27,7 +27,7 @@ TODO
 -------------------
 * SMTP/IMAP Server
 * 1Ring website authentication
-
+* DHT data provisioning
 
 Dependencies 
 -------------------
